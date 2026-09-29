@@ -1,0 +1,33 @@
+# Upstream providers reachable through `ANY /p/{provider}/{*path}`.
+#
+# This file is embedded into the Worker at build time; adding a provider is a config change
+# followed by a redeploy. Each provider's API key lives in the Worker secret named by `secret`
+# (`wrangler secret put <SECRET>`), never in this file and never on the device.
+#
+# Schema:
+#   base_url          https origin, optionally with a path prefix (no query/fragment)
+#   secret            name of the Worker secret holding the API key ([A-Z][A-Z0-9_]*)
+#   auth              one of:
+#                       { kind = "header", name = "<Header>", format = "Bearer {key}" }  (format defaults to "{key}")
+#                       { kind = "query",  name = "<param>" }
+#                       { kind = "basic",  format = "user:{key}" }                        (format defaults to "{key}")
+#   allow             list of { method, path }; `*` matches one or more whole path segments
+#   rate_limit        optional { per_minute, per_day } per (device, provider)
+#   max_body_bytes    optional request-body cap, default 1048576 (1 MiB)
+#   require_assertion optional; when true, iOS clients must send a fresh App Attest assertion
+#                     in `X-Attestra-Assertion` with every request
+
+[providers.openai]
+base_url = "https://api.openai.com"
+secret = "OPENAI_API_KEY"
+auth = { kind = "header", name = "Authorization", format = "Bearer {key}" }
+allow = [ { method = "POST", path = "/v1/chat/completions" } ]
+rate_limit = { per_minute = 60, per_day = 2000 }
+max_body_bytes = 1048576
+require_assertion = false
+
+[providers.gmaps]
+base_url = "https://maps.googleapis.com"
+secret = "GMAPS_KEY"
+auth = { kind = "query", name = "key" }
+allow = [ { method = "GET", path = "/maps/api/place/*" } ]

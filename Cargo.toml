@@ -1,0 +1,77 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/attest-apple",
+    "crates/attest-google",
+    "crates/session",
+    "crates/proxy-core",
+    "worker",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace.dependencies]
+# Internal crates
+attest-apple = { path = "crates/attest-apple" }
+attest-google = { path = "crates/attest-google" }
+session = { path = "crates/session" }
+proxy-core = { path = "crates/proxy-core" }
+
+# Serialization / encoding
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+toml = { version = "1.1", default-features = false, features = ["std", "parse", "serde"] }
+base64 = "0.23.1"
+hex = "0.4.3"
+
+# Errors
+thiserror = "2.0.17"
+
+# Crypto: pure-Rust RustCrypto crates only (no ring/openssl). Default features are off to keep
+# the wasm module small; `rsa` is an exact-pinned release candidate because 0.9 carries the
+# unfixed Marvin timing advisory (RUSTSEC-2023-0071) and 0.10 is not yet stable.
+p256 = { version = "0.14", default-features = false, features = ["alloc", "ecdsa", "pkcs8", "pem"] }
+p384 = { version = "0.14", default-features = false, features = ["alloc", "ecdsa"] }
+sha2 = { version = "0.11", default-features = false }
+rsa = { version = "=0.10.0-rc.18", default-features = false, features = ["std", "encoding"] }
+x509-cert = { version = "0.3", default-features = false, features = ["std", "pem"] }
+der = { version = "0.8", default-features = false, features = ["std", "oid"] }
+spki = { version = "0.8", default-features = false, features = ["std"] }
+subtle = { version = "2.6.1", default-features = false }
+ciborium = "0.2.2"
+
+# Randomness (crypto.getRandomValues on wasm32; the worker crate already depends on
+# wasm-bindgen unconditionally, so enabling `wasm_js` everywhere is fine)
+getrandom = { version = "0.4.3", features = ["wasm_js"] }
+futures-util = { version = "0.3.31", default-features = false }
+
+# Cloudflare Workers runtime (only the `worker/` crate may depend on this)
+worker = { version = "0.8.7", features = ["d1"] }
+# Required by `#[durable_object]` expansions; unifies with the version `worker` uses.
+wasm-bindgen = "0.2.129"
+# Same version `worker` uses; needed to cancel request bodies we stop reading.
+wasm-streams = "0.7.0"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+# Not `strip = true`: stripping symbols makes wasm-ld drop the `target_features` section, so
+# wasm-bindgen cannot see reference-types and fails to emit worker-build's panic-recovery
+# catch wrappers. Debug info is still stripped, and wasm-opt shrinks the module afterwards.
+strip = "debuginfo"

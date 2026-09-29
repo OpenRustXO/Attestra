@@ -1,0 +1,43 @@
+name = "attestra"
+main = "worker/build/index.js"
+compatibility_date = "2026-09-01"
+
+[build]
+command = "cargo install -q worker-build --version ^0.8.7 --locked && worker-build --release worker"
+watch_dir = ["worker/src", "crates", "config"]
+
+[observability]
+enabled = true
+
+# Non-secret configuration. Every value must be a quoted string.
+# A platform whose variables are left empty is disabled.
+[vars]
+APPLE_TEAM_ID = ""                  # 10-character Apple Developer Team ID
+APPLE_BUNDLE_IDS = ""               # comma-separated bundle identifiers
+APPLE_ALLOW_DEVELOPMENT = "false"   # also accept the `appattestdevelop` environment
+ANDROID_PACKAGE_NAMES = ""          # comma-separated package names
+ANDROID_CERT_SHA256 = ""            # comma-separated signing-cert SHA-256 digests (hex or base64)
+ANDROID_REQUIRE_LICENSED = "true"   # require appLicensingVerdict == LICENSED
+SESSION_TTL_SECONDS = "900"
+CHALLENGE_TTL_SECONDS = "120"
+
+# Secrets: `wrangler secret put <NAME>` (or `.dev.vars` for local development).
+#   SESSION_SIGNING_KEY          P-256 private key, PKCS#8 PEM
+#   GOOGLE_SERVICE_ACCOUNT_JSON  service-account key with access to the Play Integrity API
+#   <provider secret>            one per provider, named by `secret` in config/providers.toml
+
+[[d1_databases]]
+binding = "DB"
+database_name = "attestra"
+database_id = "00000000-0000-0000-0000-000000000000" # replace with the id from `wrangler d1 create attestra`
+migrations_dir = "migrations"
+
+[durable_objects]
+bindings = [
+  { name = "CHALLENGE_STORE", class_name = "ChallengeStore" },
+  { name = "DEVICE_STATE", class_name = "DeviceState" },
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChallengeStore", "DeviceState"]

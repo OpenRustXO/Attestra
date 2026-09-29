@@ -1,0 +1,7 @@
+# Copy to `.dev.vars` for `wrangler dev`. Never commit `.dev.vars`.
+SESSION_SIGNING_KEY="-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----"
+GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account","client_email":"...","private_key":"..."}'
+OPENAI_API_KEY="sk-..."
+GMAPS_KEY="..."
