@@ -1,7 +1,53 @@
-# Copy to `.dev.vars` for `wrangler dev`. Never commit `.dev.vars`.
+# Copy to `.dev.vars` for `wrangler dev` (never commit it).
+# Production: `npx wrangler secret put <NAME>`.
+# Commented lines are optional dev-only overrides of [vars] in wrangler.toml
+# (wrangler.toml is what gets deployed; values here stay local).
+
+# ==========================================================
+#                   Sessions (required)
+# ==========================================================
+
+# P-256 PKCS#8 PEM that signs session tokens. Keep secret.
+# openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt
 SESSION_SIGNING_KEY="-----BEGIN PRIVATE KEY-----
 ...
 -----END PRIVATE KEY-----"
+
+
+
+
+# ==========================================================
+#                    iOS (App Attest)
+# ==========================================================
+
+# APPLE_TEAM_ID="ABCDE12345"
+# APPLE_BUNDLE_IDS="com.example.app"
+# APPLE_ALLOW_DEVELOPMENT="true"  # accept Xcode debug builds (never in production)
+
+
+
+
+# ==========================================================
+#                 Android (Play Integrity)
+# ==========================================================
+
+# Google service-account key JSON. Keep the single quotes.
 GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account","client_email":"...","private_key":"..."}'
+
+# ANDROID_CERT_SHA256="AB:CD:..."
+# ANDROID_PACKAGE_NAMES="com.example.app"
+
+
+
+
+# ==========================================================
+#                 API keys (demo providers)
+# ==========================================================
+
+# Names match `secret` in config/providers.toml.
+
+# openai: sent as `Authorization: Bearer <key>`
 OPENAI_API_KEY="sk-..."
+
+# gmaps: sent as `?key=<key>`
 GMAPS_KEY="..."

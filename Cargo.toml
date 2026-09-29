@@ -31,9 +31,9 @@ hex = "0.4.3"
 # Errors
 thiserror = "2.0.17"
 
-# Crypto: pure-Rust RustCrypto crates only (no ring/openssl). Default features are off to keep
-# the wasm module small; `rsa` is an exact-pinned release candidate because 0.9 carries the
-# unfixed Marvin timing advisory (RUSTSEC-2023-0071) and 0.10 is not yet stable.
+# Crypto: pure-Rust RustCrypto crates only (no ring/openssl).
+# Default features are off to keep the wasm module small.
+# `rsa` is an exact-pinned release candidate because 0.9 carries the unfixed Marvin timing advisory (RUSTSEC-2023-0071) and 0.10 is not yet stable.
 p256 = { version = "0.14", default-features = false, features = ["alloc", "ecdsa", "pkcs8", "pem"] }
 p384 = { version = "0.14", default-features = false, features = ["alloc", "ecdsa"] }
 sha2 = { version = "0.11", default-features = false }
@@ -71,7 +71,7 @@ dbg_macro = "deny"
 opt-level = "z"
 lto = true
 codegen-units = 1
-# Not `strip = true`: stripping symbols makes wasm-ld drop the `target_features` section, so
-# wasm-bindgen cannot see reference-types and fails to emit worker-build's panic-recovery
-# catch wrappers. Debug info is still stripped, and wasm-opt shrinks the module afterwards.
+# Not `strip = true`: it drops the wasm `target_features` section, so wasm-bindgen does not
+# enable reference types and worker-build's panic-recovery catch wrappers fail to build.
+# DWARF debug info is still stripped; function names stay (wasm-opt --debuginfo), ~55 KiB gzipped.
 strip = "debuginfo"
