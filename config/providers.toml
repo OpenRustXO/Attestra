@@ -1,22 +1,106 @@
-# Upstream providers reachable through `ANY /p/{provider}/{*path}`.
+# ==============================================================================
+#                         Attestra upstream providers
+# ==============================================================================
 #
-# This file is embedded into the Worker at build time; adding a provider is a config change
-# followed by a redeploy. Each provider's API key lives in the Worker secret named by `secret`
-# (`wrangler secret put <SECRET>`), never in this file and never on the device.
+# Every table under `[providers.<name>]` is reachable through:
 #
-# Schema:
-#   base_url          https origin, optionally with a path prefix (no query/fragment)
-#   secret            name of the Worker secret holding the API key ([A-Z][A-Z0-9_]*)
-#   auth              one of:
-#                       { kind = "header", name = "<Header>", format = "Bearer {key}" }  (format defaults to "{key}")
-#                       { kind = "query",  name = "<param>" }
-#                       { kind = "basic",  format = "user:{key}" }                        (format defaults to "{key}")
-#   allow             list of { method, path }; `*` matches one or more whole path segments
-#   rate_limit        optional { per_minute, per_day } per (device, provider)
-#   max_body_bytes    optional request-body cap, default 1048576 (1 MiB)
-#   require_assertion optional; when true, iOS clients must send a fresh App Attest assertion
-#                     in `X-Attestra-Assertion` with every request
+#     ANY /p/{provider}/{*path}
+#
+# HOW THIS FILE IS USED
+#   - Embedded into the Worker at build time and validated on load
+#     (`cargo test` fails if it is invalid).
+#   - Adding or changing a provider = edit this file, then redeploy.
+#   - API keys never live here or on the device. Each provider reads its key from
+#     a Worker secret:  wrangler secret put <SECRET>
+#
+# ------------------------------------------------------------------------------
+#                                   SCHEMA
+# ------------------------------------------------------------------------------
+#
+#   [providers.<name>]      Provider name, used in the URL: /p/<name>/...
+#                           Format: [a-z0-9][a-z0-9_-]{0,63}
+#
+#   Required
+#   --------
+#   base_url                Upstream origin.
+#                             - must start with `https://`
+#                             - may include a port and a path prefix
+#                             - no credentials, query string or fragment
+#                           e.g. "https://api.example.com/v2"
+#
+#   secret                  Name of the Worker secret holding the API key.
+#                           Format: [A-Z][A-Z0-9_]*
+#                           Reserved internal secrets are rejected.
+#
+#   auth                    How the key is attached to the upstream request.
+#                           One of three forms (see AUTH below).
+#
+#   allow                   Allowlist of { method, path } rules, at least one.
+#                           Any request that matches no rule is `forbidden`.
+#                           See ALLOW below.
+#
+#   Optional
+#   --------
+#   rate_limit              { per_minute, per_day }
+#                             - counted per (device, provider)
+#                             - fixed UTC minute / day windows
+#                             - set at least one; values must be > 0
+#                           Default: no limit.
+#
+#   max_body_bytes          Request-body cap in bytes.
+#                           Default: 1048576 (1 MiB). Maximum: 104857600 (100 MiB).
+#
+#   require_assertion       true  = iOS clients must send a fresh App Attest assertion
+#                                   in the `X-Attestra-Assertion` header with every
+#                                   request.
+#                           false = no per-request assertion.
+#                           Default: false.
+#
+# ------------------------------------------------------------------------------
+#                                     AUTH
+# ------------------------------------------------------------------------------
+#
+#   Header   { kind = "header", name = "<Header>", format = "Bearer {key}" }
+#              Sends `<Header>: <format>`.
+#              `format` is optional, default "{key}".
+#              `name` may not be a header the proxy manages itself
+#              (Host, Cookie, Content-Length, X-Attestra-Assertion, cf-*, x-forwarded-*, ...).
+#
+#   Query    { kind = "query", name = "<param>" }
+#              Appends `?<param>=<key>` to the upstream URL.
+#              Any client-supplied parameter with the same name is dropped.
+#
+#   Basic    { kind = "basic", format = "user:{key}" }
+#              Sends `Authorization: Basic base64(<format>)`.
+#              `format` is optional, default "{key}".
+#
+#   `format` must be printable ASCII and contain `{key}` exactly once.
+#
+# ------------------------------------------------------------------------------
+#                                   ALLOW
+# ------------------------------------------------------------------------------
+#
+#   allow = [ { method = "GET", path = "/maps/api/place/*" } ]
+#
+#   method   GET | HEAD | POST | PUT | PATCH | DELETE | OPTIONS (case-insensitive).
+#   path     Must start with `/`.
+#            `*` matches one or more whole path segments and cannot be mixed with
+#            other characters in a segment (`/v1/*` is valid, `/v1/foo*` is not).
+#
+#   Incoming paths are normalized first. Requests containing `.` / `..` segments,
+#   empty segments, backslashes, or encoded `/ \ . %` and control characters are
+#   rejected outright.
+#
+# ==============================================================================
+#                                  PROVIDERS
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
+# OpenAI: chat completions
+#   Secret:  OPENAI_API_KEY
+#   Auth:    Authorization: Bearer <key>
+#   Limits:  60 requests/minute, 2000 requests/day per device; 1 MiB body
+# ------------------------------------------------------------------------------
 [providers.openai]
 base_url = "https://api.openai.com"
 secret = "OPENAI_API_KEY"
@@ -26,6 +110,12 @@ rate_limit = { per_minute = 60, per_day = 2000 }
 max_body_bytes = 1048576
 require_assertion = false
 
+# ------------------------------------------------------------------------------
+# Google Maps: Places API
+#   Secret:  GMAPS_KEY
+#   Auth:    `?key=<key>` query parameter
+#   Limits:  none configured; default 1 MiB body
+# ------------------------------------------------------------------------------
 [providers.gmaps]
 base_url = "https://maps.googleapis.com"
 secret = "GMAPS_KEY"
